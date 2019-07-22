@@ -26,6 +26,7 @@ using QuickApp.ViewModels;
 using Swashbuckle.AspNetCore.Swagger;
 using System;
 using System.Collections.Generic;
+using IdentityServer4.AspNetIdentity;
 using AppPermissions = DAL.Core.ApplicationPermissions;
 
 namespace QuickApp
@@ -79,12 +80,30 @@ namespace QuickApp
                 // This might be useful to get started, but needs to be replaced by some persistent key material for production scenarios.
                 // See http://docs.identityserver.io/en/release/topics/crypto.html#refcrypto for more information.
                 .AddDeveloperSigningCredential()
-                .AddInMemoryPersistedGrants()
-                // To configure IdentityServer to use EntityFramework (EF) as the storage mechanism for configuration data (rather than using the in-memory implementations),
-                // see https://identityserver4.readthedocs.io/en/release/quickstarts/8_entity_framework.html
-                .AddInMemoryIdentityResources(IdentityServerConfig.GetIdentityResources())
-                .AddInMemoryApiResources(IdentityServerConfig.GetApiResources())
-                .AddInMemoryClients(IdentityServerConfig.GetClients())
+
+
+                //.AddInMemoryPersistedGrants()
+                //// To configure IdentityServer to use EntityFramework (EF) as the storage mechanism for configuration data (rather than using the in-memory implementations),
+                //// see https://identityserver4.readthedocs.io/en/release/quickstarts/8_entity_framework.html
+                //.AddInMemoryIdentityResources(IdentityServerConfig.GetIdentityResources())
+                //.AddInMemoryApiResources(IdentityServerConfig.GetApiResources())
+                //.AddInMemoryClients(IdentityServerConfig.GetClients())
+
+
+                .AddConfigurationStore(options =>
+                {
+                    options.ConfigureDbContext = builder => builder.UseSqlServer(Configuration["ConnectionStrings:DefaultConnection"], b => b.MigrationsAssembly("QuickApp"));
+                })
+          .AddOperationalStore(options =>
+          {
+              options.ConfigureDbContext = builder => builder.UseSqlServer(Configuration["ConnectionStrings:DefaultConnection"], b => b.MigrationsAssembly("QuickApp"));
+
+              // this enables automatic token cleanup. this is optional. 
+              options.EnableTokenCleanup = true;
+              options.TokenCleanupInterval = 30;
+          })
+
+
                 .AddAspNetIdentity<ApplicationUser>()
                 .AddProfileService<ProfileService>();
 
@@ -162,12 +181,15 @@ namespace QuickApp
                 });
             });
 
+            //var config = new MapperConfiguration(cfg => {
+            //    cfg.AddProfile<AutoMapperProfile>();
+            //});
+
 
             Mapper.Initialize(cfg =>
             {
                 cfg.AddProfile<AutoMapperProfile>();
             });
-
 
             // Configurations
             services.Configure<AppSettings>(Configuration);
@@ -188,7 +210,7 @@ namespace QuickApp
             services.AddSingleton<IAuthorizationHandler, AssignRolesAuthorizationHandler>();
 
             // DB Creation and Seeding
-            services.AddTransient<IDatabaseInitializer, DatabaseInitializer>();
+            services.AddTransient<IDatabaseInitializer, IdentityServerDbInitializer>();
         }
 
 
@@ -250,7 +272,7 @@ namespace QuickApp
                 if (env.IsDevelopment())
                 {
                     spa.UseAngularCliServer(npmScript: "start");
-                    spa.Options.StartupTimeout = TimeSpan.FromSeconds(120); // Increase the timeout if angular app is taking longer to startup
+                    spa.Options.StartupTimeout = TimeSpan.FromSeconds(500); // Increase the timeout if angular app is taking longer to startup
                     //spa.UseProxyToSpaDevelopmentServer("http://localhost:4200"); // Use this instead to use the angular cli server
                 }
             });

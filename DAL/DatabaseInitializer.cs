@@ -38,7 +38,7 @@ namespace DAL
             _logger = logger;
         }
 
-        public async Task SeedAsync()
+        public virtual async Task SeedAsync()
         {
             await _context.Database.MigrateAsync().ConfigureAwait(false);
 
